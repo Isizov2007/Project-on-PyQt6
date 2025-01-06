@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtSql import QSqlTableModel
 import sqlite3
+import pandas as pd
+from PyQt6.QtWidgets import QFileDialog
 
 
 class WelcomeDialog(QDialog):
@@ -87,6 +89,8 @@ class MoneyTraker(QMainWindow):
     def __init__(self):
         super(MoneyTraker, self).__init__()
         uic.loadUi(os.path.join("ui", "Mainwindow.ui"), self)
+
+        self.pushButton_export.clicked.connect(self.export_data)
 
         # Проверяем, есть ли уже соединение
         if QtSql.QSqlDatabase.contains("qt_sql_default_connection"):
@@ -214,7 +218,77 @@ class MoneyTraker(QMainWindow):
         self.reload_date()
         self.view_data()
 
-    # Функция для labels
+    # Функции экспорта данных в файлы "csv" и "xlsx"
+    def export_data(self):
+        file_name, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить файл", "", "CSV Files (*.csv);;Excel Files (*.xlsx"
+        )
+
+        if file_name:
+            if file_name.endswith(".csv"):
+                self.export_to_csv(file_name)
+            elif file_name.endswith(".xlsx"):
+                self.export_to_excel(file_name)
+            else:
+                QMessageBox.warning(
+                    self, "Ошибка", "Пожалуйста, выберите файл с правильным форматом."
+                )
+
+    def export_to_csv(self, file_name):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM expenses")
+        data = cursor.fetchall()
+        columns = [
+            column[0] for column in cursor.description
+        ]  # Получение имен столбцов
+
+        df = pd.DataFrame(data, columns=columns)
+        df.to_csv(file_name, index=False)
+        QMessageBox.information(self, "Успех", "Данные успешно экспортированы в CSV.")
+
+    def export_to_excel(self, file_name):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM expenses")
+        data = cursor.fetchall()
+        columns = [
+            column[0] for column in cursor.description
+        ]  # Получение имен столбцов
+
+        df = pd.DataFrame(data, columns=columns)
+        df.to_excel(file_name, index=False)
+        QMessageBox.information(self, "Успех", "Данные успешно экспортированы в Excel.")
+
+    def import_data(self):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Открыть файл", "", "CSV Files (*.csv)"
+        )
+
+        if file_name:
+            try:
+                df = pd.read_csv(file_name)
+                for index, row in df.iterrows():
+                    cursor = self.conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO expenses (Date, Category, Description, Balance, Status) VALUES (?, ?, ?, ?, ?)",
+                        (
+                            row["Date"],
+                            row["Category"],
+                            row["Description"],
+                            row["Balance"],
+                            row["Status"],
+                        ),
+                    )
+                self.conn.commit()
+                QMessageBox.information(
+                    self, "Успех", "Данные успешно импортированы из CSV."
+                )
+                self.view_data()  # Обновляем отображение данных
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Ошибка", f"Ошибка при импорте данных: {str(e)}"
+                )
+
+    # Функции для labels
     def get_total_balance(self, cursor):
         cursor.execute("SELECT SUM(Balance) FROM expenses")
         return str(cursor.fetchone()[0] or 0) + " руб"
