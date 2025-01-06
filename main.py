@@ -1,16 +1,10 @@
 import sys
 import os
 from PyQt6 import uic, QtSql
-from PyQt6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QDialog,
-    QMessageBox,
-)
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QMessageBox, QFileDialog
 from PyQt6.QtSql import QSqlTableModel
 import sqlite3
 import pandas as pd
-from PyQt6.QtWidgets import QFileDialog
 
 
 class WelcomeDialog(QDialog):
